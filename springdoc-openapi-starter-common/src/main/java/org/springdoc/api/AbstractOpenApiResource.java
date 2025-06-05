@@ -109,6 +109,7 @@ import org.springdoc.core.service.GenericResponseService;
 import org.springdoc.core.service.OpenAPIService;
 import org.springdoc.core.service.OperationService;
 import org.springdoc.core.utils.PropertyResolverUtils;
+import org.springdoc.core.utils.SpringDocAnnotationsUtils;
 import org.springdoc.core.utils.SpringDocUtils;
 
 import org.springframework.aop.support.AopUtils;
@@ -349,6 +350,7 @@ public abstract class AbstractOpenApiResource extends SpecFilter {
 			final OpenAPI openAPI;
 			final Locale finalLocale = selectLocale(locale);
 			if (openAPIService.getCachedOpenAPI(finalLocale) == null || springDocConfigProperties.isCacheDisabled()) {
+				SpringDocAnnotationsUtils.CONTEXT.clear();
 				Instant start = Instant.now();
 				openAPI = openAPIService.build(finalLocale);
 				Map<String, Object> mappingsMap = openAPIService.getMappingsMap().entrySet().stream()

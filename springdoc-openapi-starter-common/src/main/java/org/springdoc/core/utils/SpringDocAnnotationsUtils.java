@@ -32,6 +32,7 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -44,6 +45,8 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonView;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.core.converter.AnnotatedType;
+import io.swagger.v3.core.converter.ModelConverterContext;
+import io.swagger.v3.core.converter.ModelConverterContextImpl;
 import io.swagger.v3.core.converter.ModelConverters;
 import io.swagger.v3.core.converter.ResolvedSchema;
 import io.swagger.v3.core.util.AnnotationsUtils;
@@ -63,6 +66,7 @@ import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.media.StringSchema;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -90,6 +94,11 @@ public class SpringDocAnnotationsUtils extends AnnotationsUtils {
 	 * The constant ANNOTATIONS_TO_IGNORE.
 	 */
 	private static final List<Class> ANNOTATIONS_TO_IGNORE = Collections.synchronizedList(new ArrayList<>());
+
+	/**
+	 * The reusable context
+	 */
+	public static final Map<SpecVersion, ModelConverterContext> CONTEXT = new HashMap<>();
 
 	static {
 		ANNOTATIONS_TO_IGNORE.add(Hidden.class);
@@ -131,18 +140,15 @@ public class SpringDocAnnotationsUtils extends AnnotationsUtils {
 	public static Schema extractSchema(Components components, Type returnType, JsonView jsonView, Annotation[] annotations, SpecVersion specVersion) {
 		if (returnType == null) return null;
 		Schema schemaN = null;
-		ResolvedSchema resolvedSchema;
 		boolean openapi31 = SpecVersion.V31 == specVersion;
-		try {
-			resolvedSchema = ModelConverters.getInstance(openapi31)
-					.resolveAsResolvedSchema(
-							new AnnotatedType(returnType)
-									.resolveAsRef(true).jsonViewAnnotation(jsonView).ctxAnnotations(annotations));
+		if (jsonView != null) {
+			annotations = ArrayUtils.addAll(annotations, jsonView);
 		}
-		catch (Exception e) {
-			LOGGER.warn(Constants.GRACEFUL_EXCEPTION_OCCURRED, e);
-			return null;
-		}
+		var aType = new AnnotatedType(returnType)
+				.resolveAsRef(true)
+				.jsonViewAnnotation(jsonView)
+				.ctxAnnotations(annotations);
+		ResolvedSchema resolvedSchema = resolveAsResolvedSchema(specVersion, aType);
 		if (resolvedSchema != null) {
 			Map<String, Schema> schemaMap = resolvedSchema.referencedSchemas;
 			if (!CollectionUtils.isEmpty(schemaMap) && components != null) {
@@ -185,6 +191,25 @@ public class SpringDocAnnotationsUtils extends AnnotationsUtils {
 			handleSchemaTypes(schemaN);
 
 		return schemaN;
+	}
+
+	@Nullable
+	private static ResolvedSchema resolveAsResolvedSchema(SpecVersion specVersion, AnnotatedType type) {
+		ResolvedSchema resolvedSchema;
+		try {
+			var context = CONTEXT.computeIfAbsent(specVersion, k -> {
+				boolean openapi31 = SpecVersion.V31 == specVersion;
+				return new ModelConverterContextImpl(ModelConverters.getInstance(openapi31).getConverters());
+			});
+			resolvedSchema = new ResolvedSchema();
+			resolvedSchema.schema = context.resolve(type);
+			resolvedSchema.referencedSchemas = context.getDefinedModels();
+		}
+		catch (Exception e) {
+			LOGGER.warn(Constants.GRACEFUL_EXCEPTION_OCCURRED, e);
+			return null;
+		}
+		return resolvedSchema;
 	}
 
 	/**
