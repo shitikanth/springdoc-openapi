@@ -92,7 +92,7 @@
 						</goals>
 						<configuration>
 							<scripts>
-								<script>${basedir}/src/test/groovy/v31/app245/generate-dtos.groovy</script>
+								<script>${basedir}/src/test/groovy/v31/app245/generate.groovy</script>
 							</scripts>
 						</configuration>
 					</execution>

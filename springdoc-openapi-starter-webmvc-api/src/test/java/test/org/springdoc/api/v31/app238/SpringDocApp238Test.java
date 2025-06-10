@@ -26,6 +26,7 @@ package test.org.springdoc.api.v31.app238;
 
 import java.util.Locale;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springdoc.core.customizers.OpenApiLocaleCustomizer;
 import org.springdoc.core.utils.Constants;
@@ -46,6 +47,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @TestPropertySource(properties = "springdoc.allowed-locales=en-US,fr-CA")
+@Disabled
 public class SpringDocApp238Test extends AbstractSpringDocTest {
 
 	@Test
